@@ -101,8 +101,14 @@ def main():
         if whisper:
             c = os.path.join(cache, rel + ".json")
             if not os.path.exists(c):
-                res = whisper.transcribe(os.path.join(a.game_dir, rel), path_or_hf_repo=a.model, language=a.lang,
-                                         condition_on_previous_text=False, verbose=None)
+                try:
+                    res = whisper.transcribe(os.path.join(a.game_dir, rel), path_or_hf_repo=a.model, language=a.lang,
+                                             condition_on_previous_text=False, verbose=None)
+                except RuntimeError:  # a damaged clip; not cached, so a repaired one is tried again
+                    print(f"skip {rel}: ffmpeg can't read it", file=sys.stderr)
+                    keep.append({"file": rel, "conversation": os.path.dirname(rel) or "(top)", "status": "raw",
+                                 "note": "Not transcribed: the sound file is damaged. Needs doing by hand."})
+                    continue
                 os.makedirs(os.path.dirname(c), exist_ok=True)
                 segs = res["segments"]
                 # Whisper rarely returns nothing on effects and music; it hallucinates ("תודה רבה"), so trust its own scores
