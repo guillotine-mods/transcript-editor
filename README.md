@@ -7,8 +7,8 @@ saves them in the folder on your computer and sends nothing anywhere.
 
 ## For editors
 
-1. Have the game on your computer: its folder from the repository, or a copy of the game from the CD
-   (a CD itself can't be saved into).
+1. Have the game on your computer: the folder you were sent (unzip it first), its folder from the
+   repository, or a copy of the game from the CD (a CD itself can't be saved into).
 2. Go to https://guillotine-mods.github.io/transcript-editor/ in **Google Chrome** or **Microsoft Edge**.
    Safari and Firefox can only look, not save. (Without internet, `index.html` from this repository works
    the same when opened in Chrome.)
@@ -28,8 +28,9 @@ saves them in the folder on your computer and sends nothing anywhere.
 Everything saves by itself into `transcripts/lines.csv` in the game folder; the top right says
 **Saved ✓**. Each day the first open also keeps a copy, `transcripts/lines.backup-<date>.csv`,
 so nothing is lost for good. If `lines.csv` is changed somewhere else meanwhile (another tab, Excel), the
-editor stops saving and asks you to reload, so neither overwrites the other. When done, commit
-`transcripts/lines.csv` to the game's repository, or send it back.
+editor stops saving and asks you to reload, so neither overwrites the other. When done, press
+**Download my edits** and send back the file it gives you (`<game>-lines.csv`), or commit
+`transcripts/lines.csv` to the game's repository.
 
 Keys: **Ctrl+Enter** ✓ Next; **Esc** plays the line you are typing in again, or stops; **Space**
 (outside the text) play the conversation from the last line, or stop; **Enter** next line. The search box finds words, a
@@ -55,7 +56,17 @@ The editor plays the games' sounds as they are: Ogg files (whatever their extens
 and MP3. Lines find their sound ignoring case and extension, so the same `lines.csv` works in a
 repository checkout and in a copy of the CD.
 
-To collect work sent back, keep the `lines.csv` you sent out as the base and merge what comes back:
+To send a game to someone who edits it, without the rest of the game or any setup on their side:
+
+```bash
+python3 pack.py GAME_DIR -o GAME.zip
+```
+
+The zip holds the sounds, `transcripts/lines.csv` and a `Start here.html` that opens the editor. Share it
+any way that takes its size (rating is 118 MB). They unzip it, open `Start here.html` in Chrome or Edge and
+choose the unzipped folder. What they send back replaces `GAME_DIR/transcripts/lines.csv`.
+
+When several people edit, keep the `lines.csv` you sent out as the base and merge what comes back:
 
 ```bash
 python3 merge.py base.csv anna.csv ben.csv -o merged.csv

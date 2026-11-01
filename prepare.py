@@ -17,11 +17,20 @@ def natural(s):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
 
 
+def is_sound(path):
+    if path.lower().endswith(AUDIO):
+        return True
+    if "." in os.path.basename(path):
+        return False
+    with open(path, "rb") as fh:  # some games' sounds have no extension
+        return fh.read(4) in (b"OggS", b"FORM", b"RIFF")
+
+
 def clips(root):
     for d, dirs, files in os.walk(root, followlinks=True):
         dirs[:] = [x for x in dirs if not x.startswith(".") and not (d == root and x == "transcripts")]
         for f in files:
-            if not f.startswith(".") and f.lower().endswith(AUDIO):
+            if not f.startswith(".") and is_sound(os.path.join(d, f)):
                 yield os.path.relpath(os.path.join(d, f), root).replace(os.sep, "/")
 
 

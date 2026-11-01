@@ -134,7 +134,7 @@ kbd{font:inherit;font-size:12px;padding:0 4px;border:1px solid var(--line);borde
     <p>Listen to each recorded line of a game, fix its text, and mark it checked.</p>
   </div>
   <ol>
-    <li>Click <b>Choose game folder</b> and pick the game’s folder — a copy on your computer, not the CD.</li>
+    <li>Click <b>Choose game folder</b> and pick the game’s folder on your computer. If you got a .zip, unzip it first. A CD has to be copied to your computer.</li>
     <li>The browser asks whether this page may edit files in that folder. Choose <b>Allow</b> (or <b>Allow on every visit</b>).</li>
     <li>Your work saves by itself into the game folder. Next time, <b>Continue with …</b> picks up where you stopped.</li>
   </ol>
@@ -240,11 +240,18 @@ function findAudio(file) {
   }
   return null;
 }
+// Some games' sounds have no extension; those are told by their first bytes.
+async function isSound(name, file) {
+  if (AUDIO.test(name)) return true;
+  if (name.includes('.')) return false;
+  const head = await (await file()).slice(0, 4).text();
+  return head === 'OggS' || head === 'FORM' || head === 'RIFF';
+}
 async function scanDir(d, pre = '', out = []) {
   for await (const [n, h] of d.entries()) {
     if (n.startsWith('.') || (!pre && n === 'transcripts')) continue;
     if (h.kind === 'directory') await scanDir(h, pre + n + '/', out);
-    else if (AUDIO.test(n)) out.push([pre + n, h]);
+    else if (await isSound(n, () => h.getFile())) out.push([pre + n, h]);
   }
   return out;
 }
@@ -364,7 +371,10 @@ $('#pick').onclick = () => guard(async () => {
 $('#pickro').onchange = e => guard(async () => {
   const fs = [...e.target.files];
   const all = fs.map(f => [f.webkitRelativePath.split('/').slice(1).join('/'), f]);
-  const list = all.filter(([p]) => AUDIO.test(p) && !p.startsWith('transcripts/') && !p.split('/').some(x => x.startsWith('.')));
+  const list = [];
+  for (const [p, f] of all) {
+    if (!p.startsWith('transcripts/') && !p.split('/').some(x => x.startsWith('.')) && await isSound(p.split('/').pop(), () => f)) list.push([p, f]);
+  }
   const csv = all.find(([p]) => p === LINES);
   if (csv) load(await csv[1].text());
   else if (list.length) fresh(list.map(x => x[0]));
@@ -376,10 +386,11 @@ $('#pickro').onchange = e => guard(async () => {
 $('#download').onclick = () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([toCSV()], { type: 'text/csv' }));
-  a.download = 'lines.csv'; a.click();
+  a.download = projName + '-lines.csv'; a.click();
   // While saving into the folder can still work, keep retrying: the download is only a spare copy.
   if (!dir || conflict) dirty = false;
-  setStatus('Downloaded. Send that lines.csv back, or put it in the game’s transcripts folder.');
+  const done = `Downloaded ${a.download}. Send that file back.`;
+  dir ? say(done) : setStatus(done);
 };
 
 // ---- saving ----
@@ -406,14 +417,13 @@ async function save() {
   dirty = false; writing = true;
   try {
     const f = await (await getFile(LINES))?.getFile();
-    if (f && f.lastModified !== mtime) { conflict = dirty = true; setStatus(CONFLICT, true); $('#download').hidden = false; return; }
+    if (f && f.lastModified !== mtime) { conflict = dirty = true; setStatus(CONFLICT, true); return; }
     await writeFile(LINES, toCSV());
     await stamp();
-    if (!dirty) { setStatus('Saved ✓'); $('#download').hidden = true; }
+    if (!dirty) setStatus('Saved ✓');
   } catch (e) {
     dirty = true;
     setStatus('Not saved! Retrying… keep this page open.', true);
-    $('#download').hidden = false;
     timer = setTimeout(() => { saving = saving.then(save); }, 5000);
   } finally { writing = false; }
 }
@@ -424,7 +434,7 @@ addEventListener('beforeunload', e => { if (dirty || writing) { e.preventDefault
 function start(name) {
   projName = name;
   $('#help .mod').textContent = MOD;
-  $('#start').hidden = true; $('#app').hidden = false; $('#search').hidden = false; $('#help').hidden = false;
+  $('#start').hidden = true; $('#app').hidden = false; $('#search').hidden = false; $('#help').hidden = false; $('#download').hidden = false;
   $('#proj').textContent = name + (dir ? '' : ' (no saving)');
   document.title = name + ' · Transcript Editor';
   refreshSpeakers();
